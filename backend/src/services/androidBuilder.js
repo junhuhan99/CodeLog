@@ -419,12 +419,12 @@ const buildAPK = async (buildDir, log) => {
     }
   } catch (error) {
     log('Build error: ' + error.message);
+    log('Full error stack: ' + error.stack);
 
-    // Create a dummy APK for demo purposes if build fails
-    log('Creating demo APK for testing...');
-    const demoApkPath = path.join(buildDir, 'app-demo.apk');
-    await fs.writeFile(demoApkPath, 'Demo APK - Install Gradle and Android SDK for real builds');
-    return demoApkPath;
+    // Do NOT create demo APK - throw error to indicate build failure
+    throw new Error('APK build failed: ' + error.message +
+      '\n\nPlease ensure Gradle, Android SDK, and JDK are properly installed on the server.' +
+      '\nRefer to Android_빌드_설정_가이드.txt for installation instructions.');
   }
 };
 
@@ -461,12 +461,12 @@ const buildAAB = async (buildDir, log) => {
     }
   } catch (error) {
     log('Build error: ' + error.message);
+    log('Full error stack: ' + error.stack);
 
-    // Create a dummy AAB for demo purposes if build fails
-    log('Creating demo AAB for testing...');
-    const demoAabPath = path.join(buildDir, 'app-demo.aab');
-    await fs.writeFile(demoAabPath, 'Demo AAB - Install Gradle and Android SDK for real builds');
-    return demoAabPath;
+    // Do NOT create demo AAB - throw error to indicate build failure
+    throw new Error('AAB build failed: ' + error.message +
+      '\n\nPlease ensure Gradle, Android SDK, and JDK are properly installed on the server.' +
+      '\nRefer to Android_빌드_설정_가이드.txt for installation instructions.');
   }
 };
 

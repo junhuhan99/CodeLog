@@ -224,41 +224,33 @@ export default function ProjectDetail() {
         return
       }
 
-      // Download file
+      // Download file using fetch with auth
       const token = localStorage.getItem('token')
       const downloadUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/projects/${id}/builds/${buildId}/download`
 
-      // Create a temporary anchor element and trigger download
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.setAttribute('download', '')
-      link.style.display = 'none'
+      showAlert('info', '다운로드를 준비하는 중...')
 
-      // Add authorization header via fetch
-      fetch(downloadUrl, {
+      const response = await fetch(downloadUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
-      .then(response => {
-        if (!response.ok) throw new Error('Download failed')
-        return response.blob()
-      })
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${project.app_name.replace(/\s+/g, '_')}_${buildInfo.data.build.version_name}.${buildInfo.data.build.build_type}`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        a.remove()
-        showAlert('success', '빌드 파일 다운로드가 시작되었습니다')
-      })
-      .catch(err => {
-        console.error('Download error:', err)
-        showAlert('error', '다운로드에 실패했습니다')
-      })
+
+      if (!response.ok) {
+        throw new Error('Download failed')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${project.app_name.replace(/\s+/g, '_')}_${buildInfo.data.build.version_name}.${buildInfo.data.build.build_type}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      a.remove()
+
+      showAlert('success', '빌드 파일 다운로드가 시작되었습니다')
     } catch (error) {
       console.error('Download error:', error)
       showAlert('error', error.response?.data?.error || '다운로드에 실패했습니다')

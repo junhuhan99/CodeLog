@@ -1,0 +1,652 @@
+================================================================================
+CodeLog - Android 빌드 공식 설정 가이드 (Capacitor + Android Studio)
+================================================================================
+
+📅 작성일: 2025-10-13
+🎯 목적: Android Studio 공식 방법으로 APK/AAB 빌드 환경 구성
+✅ 개선 사항: 기존 수동 방식 → Capacitor 공식 방식
+
+================================================================================
+목차
+================================================================================
+1. 개요 및 변경 사항
+2. 서버 환경 요구사항
+3. 필수 소프트웨어 설치
+4. Capacitor 설정
+5. Android SDK 설정
+6. 빌드 프로세스
+7. 문제 해결
+8. 빠른 참조
+
+================================================================================
+1. 개요 및 변경 사항
+================================================================================
+
+1.1. 변경 사항
+--------------
+이전 방식 (수동):
+- 직접 Gradle 파일 생성
+- 수동으로 Android 프로젝트 구조 생성
+- 불안정한 빌드 프로세스
+
+새로운 방식 (Capacitor):
+- Ionic Capacitor 공식 도구 사용
+- Android Studio와 완벽 통합
+- 안정적이고 표준화된 빌드
+- 유지보수 용이
+
+1.2. Capacitor란?
+--------------
+- Ionic 팀이 개발한 크로스 플랫폼 네이티브 런타임
+- 웹 앱을 Android/iOS 네이티브 앱으로 변환
+- Cordova의 현대적 대체제
+- Android Studio/Xcode와 완벽 통합
+- 공식 문서: https://capacitorjs.com
+
+1.3. 파일 변경 사항
+--------------
+✅ 생성된 파일:
+- backend/src/services/androidBuilderCapacitor.js (새 빌더)
+
+✅ 수정된 파일:
+- backend/src/controllers/buildController.js (새 빌더 사용)
+- frontend/src/pages/ProjectDetail.jsx (다운로드 함수 개선)
+
+❌ 더 이상 사용하지 않는 파일:
+- backend/src/services/androidBuilder.js (백업용으로 보관)
+
+================================================================================
+2. 서버 환경 요구사항
+================================================================================
+
+2.1. 운영 체제
+--------------
+- Ubuntu 20.04 LTS 이상 (권장)
+- Ubuntu 22.04 LTS
+- Debian 11 이상
+- Windows Server 2019+ (선택)
+
+최소 사양:
+- CPU: 4 코어 이상 (8 코어 권장)
+- RAM: 8GB 이상 (16GB 권장)
+- 디스크: 50GB 이상 여유 공간
+- 네트워크: 안정적인 인터넷 연결
+
+2.2. 권장 사양 (EC2 기준)
+--------------
+- t3.xlarge (4 vCPU, 16GB RAM) - 권장
+- t3.large (2 vCPU, 8GB RAM) - 최소
+- 스토리지: 80GB EBS
+- Ubuntu 22.04 LTS AMI
+
+================================================================================
+3. 필수 소프트웨어 설치
+================================================================================
+
+3.1. Node.js 18+ 설치
+--------------
+# Ubuntu/Debian
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# 확인
+node --version  # v18.x.x 이상
+npm --version   # v9.x.x 이상
+
+3.2. Java Development Kit (JDK) 17 설치
+--------------
+# OpenJDK 17 설치
+sudo apt update
+sudo apt install -y openjdk-17-jdk
+
+# 환경 변수 설정
+echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' >> ~/.bashrc
+echo 'export PATH=$JAVA_HOME/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# 확인
+java --version
+
+출력 예시:
+openjdk 17.0.x 2023-xx-xx
+OpenJDK Runtime Environment (build 17.0.x+x)
+OpenJDK 64-Bit Server VM (build 17.0.x+x, mixed mode, sharing)
+
+3.3. Android SDK 설치 (명령줄 도구)
+--------------
+# Android SDK 명령줄 도구 다운로드
+cd ~
+wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+
+# 압축 해제 및 설치
+mkdir -p ~/android-sdk/cmdline-tools
+unzip commandlinetools-linux-9477386_latest.zip -d ~/android-sdk/cmdline-tools
+mv ~/android-sdk/cmdline-tools/cmdline-tools ~/android-sdk/cmdline-tools/latest
+
+# 환경 변수 설정
+echo 'export ANDROID_HOME=~/android-sdk' >> ~/.bashrc
+echo 'export ANDROID_SDK_ROOT=$ANDROID_HOME' >> ~/.bashrc
+echo 'export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH' >> ~/.bashrc
+echo 'export PATH=$ANDROID_HOME/platform-tools:$PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# SDK 패키지 설치
+sdkmanager --update
+sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+# 라이선스 동의
+yes | sdkmanager --licenses
+
+# 확인
+sdkmanager --list_installed
+
+3.4. Gradle 설치
+--------------
+# Gradle 8.x 설치
+cd ~
+wget https://services.gradle.org/distributions/gradle-8.4-bin.zip
+sudo mkdir /opt/gradle
+sudo unzip -d /opt/gradle gradle-8.4-bin.zip
+
+# 환경 변수 설정
+echo 'export GRADLE_HOME=/opt/gradle/gradle-8.4' >> ~/.bashrc
+echo 'export PATH=$GRADLE_HOME/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# 확인
+gradle --version
+
+3.5. Capacitor CLI 설치 (전역)
+--------------
+sudo npm install -g @capacitor/cli @capacitor/core
+
+# 확인
+npx cap --version
+
+================================================================================
+4. Capacitor 설정
+================================================================================
+
+4.1. 프로젝트 의존성 설치
+--------------
+# CodeLog 백엔드로 이동
+cd ~/CodeLog/backend
+
+# Capacitor 관련 패키지 추가
+npm install --save @capacitor/core @capacitor/cli @capacitor/android
+
+4.2. 빌드 디렉토리 권한 설정
+--------------
+# 빌드 디렉토리 생성
+mkdir -p ~/CodeLog/backend/android-builds
+
+# 권한 설정
+chmod 755 ~/CodeLog/backend/android-builds
+
+4.3. 환경 변수 확인
+--------------
+# 모든 환경 변수가 설정되었는지 확인
+echo $JAVA_HOME
+echo $ANDROID_HOME
+echo $ANDROID_SDK_ROOT
+echo $GRADLE_HOME
+
+# 모든 도구가 PATH에 있는지 확인
+which java
+which gradle
+which sdkmanager
+which node
+which npm
+
+================================================================================
+5. Android SDK 설정
+================================================================================
+
+5.1. 필수 SDK 컴포넌트 설치
+--------------
+# Android 13 (API 33) - 호환성
+sdkmanager "platforms;android-33" "build-tools;33.0.2"
+
+# Android 14 (API 34) - 최신
+sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+# 추가 도구
+sdkmanager "extras;android;m2repository"
+sdkmanager "extras;google;m2repository"
+
+5.2. 에뮬레이터 설정 (선택사항)
+--------------
+# 에뮬레이터를 사용하려면
+sdkmanager "system-images;android-34;google_apis;x86_64"
+sdkmanager "emulator"
+
+# 에뮬레이터 생성
+avdmanager create avd -n test -k "system-images;android-34;google_apis;x86_64"
+
+5.3. 서명 키 생성 (릴리즈 빌드용)
+--------------
+# 키스토어 생성
+keytool -genkey -v -keystore ~/CodeLog/release-key.keystore \
+  -alias codelog -keyalg RSA -keysize 2048 -validity 10000
+
+# 정보 입력 (예시):
+Enter keystore password: [비밀번호 입력]
+Re-enter new password: [비밀번호 재입력]
+What is your first and last name?
+  [CN]: CodeLog
+What is the name of your organizational unit?
+  [OU]: Development
+What is the name of your organization?
+  [O]: CodeLog
+What is the name of your City or Locality?
+  [L]: Seoul
+What is the name of your State or Province?
+  [ST]: Seoul
+What is the two-letter country code for this unit?
+  [C]: KR
+
+⚠️ 주의: 키스토어 파일과 비밀번호는 안전하게 보관하세요!
+
+================================================================================
+6. 빌드 프로세스
+================================================================================
+
+6.1. 빌드 프로세스 설명
+--------------
+1. 사용자가 프론트엔드에서 빌드 요청
+2. 백엔드 API가 요청 수신
+3. buildController가 buildAndroidApp 함수 호출
+4. androidBuilderCapacitor.js 실행:
+   a. 빌드 디렉토리 생성
+   b. 웹 앱 구조 생성 (HTML, CSS, JS)
+   c. package.json 생성 및 Capacitor 설치
+   d. capacitor.config.json 생성
+   e. npx cap add android (Android 플랫폼 추가)
+   f. npx cap sync android (웹 자산 동기화)
+   g. gradlew assembleRelease/bundleRelease (APK/AAB 빌드)
+5. 빌드 파일을 android-builds 폴더에 저장
+6. 데이터베이스에 빌드 정보 업데이트
+7. 사용자가 다운로드
+
+6.2. 수동 빌드 테스트
+--------------
+# EC2 서버에서 수동으로 빌드 테스트
+
+# 1. 빌드 디렉토리로 이동
+cd ~/CodeLog/backend/android-builds/build-1  # 예시
+
+# 2. Capacitor 명령 실행
+npx cap sync android
+
+# 3. Android 프로젝트로 이동
+cd android
+
+# 4. APK 빌드
+./gradlew assembleRelease
+
+# 5. 빌드된 APK 확인
+ls -lh app/build/outputs/apk/release/
+
+# 6. AAB 빌드 (선택)
+./gradlew bundleRelease
+
+# 7. 빌드된 AAB 확인
+ls -lh app/build/outputs/bundle/release/
+
+6.3. 빌드 로그 확인
+--------------
+# 실시간 백엔드 로그 확인
+docker compose logs -f backend
+
+# 데이터베이스에서 빌드 로그 확인
+docker exec -it codelog-mysql mysql -u codelog -p
+USE codelog;
+SELECT id, build_status, build_log FROM builds ORDER BY created_at DESC LIMIT 5;
+
+6.4. 빌드 파일 위치
+--------------
+빌드된 파일 위치:
+~/CodeLog/backend/android-builds/[AppName]_[BuildId].apk
+~/CodeLog/backend/android-builds/[AppName]_[BuildId].aab
+
+예시:
+~/CodeLog/backend/android-builds/MyApp_1.apk
+~/CodeLog/backend/android-builds/MyApp_2.aab
+
+================================================================================
+7. 문제 해결
+================================================================================
+
+7.1. "Gradle is not installed" 에러
+--------------
+문제: Gradle을 찾을 수 없음
+
+해결:
+gradle --version
+# 설치되지 않았다면:
+cd ~
+wget https://services.gradle.org/distributions/gradle-8.4-bin.zip
+sudo mkdir /opt/gradle
+sudo unzip -d /opt/gradle gradle-8.4-bin.zip
+export GRADLE_HOME=/opt/gradle/gradle-8.4
+export PATH=$GRADLE_HOME/bin:$PATH
+
+7.2. "ANDROID_HOME is not set" 에러
+--------------
+문제: Android SDK 경로가 설정되지 않음
+
+해결:
+export ANDROID_HOME=~/android-sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+export PATH=$ANDROID_HOME/platform-tools:$PATH
+
+# 영구 설정
+echo 'export ANDROID_HOME=~/android-sdk' >> ~/.bashrc
+echo 'export ANDROID_SDK_ROOT=$ANDROID_HOME' >> ~/.bashrc
+source ~/.bashrc
+
+7.3. "npm install failed" 에러
+--------------
+문제: npm 패키지 설치 실패
+
+해결:
+# 캐시 삭제
+npm cache clean --force
+
+# 레거시 peer deps 사용
+npm install --legacy-peer-deps
+
+# Node.js 버전 확인 (18+ 필요)
+node --version
+
+7.4. "gradlew: Permission denied" 에러
+--------------
+문제: Gradle 실행 권한 없음
+
+해결:
+cd ~/CodeLog/backend/android-builds/build-X/android
+chmod +x gradlew
+./gradlew assembleRelease
+
+7.5. "SDK location not found" 에러
+--------------
+문제: Android SDK를 찾을 수 없음
+
+해결:
+# local.properties 파일 생성
+cd ~/CodeLog/backend/android-builds/build-X/android
+echo "sdk.dir=$HOME/android-sdk" > local.properties
+
+7.6. 메모리 부족 에러
+--------------
+문제: Gradle 빌드 중 메모리 부족
+
+해결:
+# gradle.properties 수정
+cd ~/CodeLog/backend/android-builds/build-X
+echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> gradle.properties
+
+# 또는 서버 스왑 메모리 추가
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+7.7. 빌드 시간 초과
+--------------
+문제: 빌드가 10분 이상 소요
+
+해결:
+# Gradle 데몬 활성화
+cd ~/CodeLog/backend/android-builds/build-X/android
+./gradlew --daemon
+
+# 병렬 빌드 활성화
+echo "org.gradle.parallel=true" >> gradle.properties
+
+7.8. "capacitor not found" 에러
+--------------
+문제: Capacitor CLI를 찾을 수 없음
+
+해결:
+# Capacitor 재설치
+cd ~/CodeLog/backend
+npm install --save @capacitor/core @capacitor/cli @capacitor/android
+
+# 또는 전역 설치
+sudo npm install -g @capacitor/cli
+
+================================================================================
+8. 빠른 참조
+================================================================================
+
+8.1. 환경 변수 체크
+--------------
+# 모든 환경 변수 확인
+env | grep -E 'JAVA|ANDROID|GRADLE|NODE'
+
+# 설정되어야 하는 변수들:
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ANDROID_HOME=/home/ubuntu/android-sdk
+ANDROID_SDK_ROOT=/home/ubuntu/android-sdk
+GRADLE_HOME=/opt/gradle/gradle-8.4
+
+8.2. 필수 명령어
+--------------
+# Java 확인
+java --version
+
+# Android SDK 확인
+sdkmanager --list_installed
+
+# Gradle 확인
+gradle --version
+
+# Node.js 확인
+node --version
+npm --version
+
+# Capacitor 확인
+npx cap --version
+
+8.3. 빌드 명령어
+--------------
+# APK 빌드 (디버그)
+./gradlew assembleDebug
+
+# APK 빌드 (릴리즈)
+./gradlew assembleRelease
+
+# AAB 빌드 (릴리즈)
+./gradlew bundleRelease
+
+# 빌드 정리
+./gradlew clean
+
+8.4. Capacitor 명령어
+--------------
+# Android 플랫폼 추가
+npx cap add android
+
+# 웹 자산 동기화
+npx cap sync android
+
+# Android Studio에서 열기 (GUI 환경)
+npx cap open android
+
+# 플랫폼 제거
+npx cap rm android
+
+8.5. 디버깅 명령어
+--------------
+# 빌드 로그 상세 보기
+./gradlew assembleRelease --info
+
+# 빌드 로그 더 상세하게
+./gradlew assembleRelease --debug
+
+# 빌드 캐시 정리
+./gradlew clean
+
+# Gradle 데몬 중지
+./gradlew --stop
+
+8.6. 서버 재시작 후 체크리스트
+--------------
+□ 환경 변수 설정 확인 (source ~/.bashrc)
+□ Docker 컨테이너 실행 확인 (docker compose ps)
+□ 빌드 디렉토리 권한 확인 (ls -la ~/CodeLog/backend/android-builds)
+□ Node.js 실행 확인 (node --version)
+□ Gradle 실행 확인 (gradle --version)
+□ Android SDK 확인 (sdkmanager --list_installed)
+
+================================================================================
+9. 성능 최적화
+================================================================================
+
+9.1. Gradle 빌드 최적화
+--------------
+# ~/.gradle/gradle.properties 생성 (전역 설정)
+mkdir -p ~/.gradle
+cat > ~/.gradle/gradle.properties << EOF
+org.gradle.daemon=true
+org.gradle.parallel=true
+org.gradle.configureondemand=true
+org.gradle.caching=true
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
+EOF
+
+9.2. Docker 리소스 제한 조정
+--------------
+# docker-compose.yml 수정
+# backend 서비스에 리소스 추가
+services:
+  backend:
+    ...
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          memory: 2G
+
+9.3. 빌드 캐시 활용
+--------------
+# Gradle 빌드 캐시 활성화 (이미 위 설정에 포함)
+# 첫 빌드는 느리지만, 이후 빌드는 빨라짐
+
+# Capacitor 캐시 정리 (문제 발생 시)
+cd ~/CodeLog/backend/android-builds/build-X
+rm -rf node_modules
+npm install --legacy-peer-deps
+
+================================================================================
+10. 서명된 APK 생성 (프로덕션)
+================================================================================
+
+10.1. 키스토어 설정
+--------------
+# 이미 생성한 키스토어 사용
+KEYSTORE_PATH=~/CodeLog/release-key.keystore
+KEYSTORE_PASSWORD=your_password
+KEY_ALIAS=codelog
+KEY_PASSWORD=your_password
+
+10.2. build.gradle 수정
+--------------
+# android/app/build.gradle 파일에 서명 설정 추가
+
+android {
+    ...
+    signingConfigs {
+        release {
+            storeFile file("$KEYSTORE_PATH")
+            storePassword "$KEYSTORE_PASSWORD"
+            keyAlias "$KEY_ALIAS"
+            keyPassword "$KEY_PASSWORD"
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            ...
+        }
+    }
+}
+
+10.3. 서명된 빌드
+--------------
+./gradlew assembleRelease
+
+# 서명 확인
+jarsigner -verify -verbose -certs app/build/outputs/apk/release/app-release.apk
+
+================================================================================
+11. CI/CD 통합 (선택사항)
+================================================================================
+
+11.1. GitHub Actions 예시
+--------------
+# .github/workflows/android-build.yml
+
+name: Android Build
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Build APK
+        run: |
+          cd backend/android-builds/build-X/android
+          ./gradlew assembleRelease
+
+================================================================================
+12. 추가 리소스
+================================================================================
+
+공식 문서:
+- Capacitor: https://capacitorjs.com/docs
+- Android Developers: https://developer.android.com
+- Gradle: https://gradle.org/docs/
+
+커뮤니티:
+- Capacitor Community: https://github.com/capacitor-community
+- Stack Overflow: https://stackoverflow.com/questions/tagged/capacitor
+
+================================================================================
+요약
+================================================================================
+
+✅ Capacitor 기반 빌드 시스템 구축 완료
+✅ Android Studio 공식 방법 사용
+✅ 안정적이고 유지보수 가능한 빌드 프로세스
+✅ 프론트엔드 다운로드 에러 수정
+
+다음 단계:
+1. EC2 서버에 필수 소프트웨어 설치 (섹션 3)
+2. Android SDK 설정 (섹션 5)
+3. 빌드 테스트 (섹션 6.2)
+4. 프로덕션 배포
+
+================================================================================
+마지막 업데이트: 2025-10-13
+작성자: Claude Code
+버전: 2.0 (Capacitor)
+================================================================================

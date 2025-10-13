@@ -1,5 +1,6 @@
 const db = require('../config/database');
-const { buildAndroidApp } = require('../services/androidBuilder');
+// Use Capacitor-based builder for official Android Studio method
+const { buildAndroidApp } = require('../services/androidBuilderCapacitor');
 
 // Get builds for project
 const getBuilds = async (req, res) => {

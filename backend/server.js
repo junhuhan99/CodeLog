@@ -13,13 +13,21 @@ const uploadRoutes = require('./src/routes/upload');
 const tabRoutes = require('./src/routes/tabs');
 const formRoutes = require('./src/routes/forms');
 const statsRoutes = require('./src/routes/stats');
+const keystoreRoutes = require('./src/routes/keystore');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Create upload directories
 const fs = require('fs');
-const uploadDirs = ['uploads', 'uploads/icons', 'uploads/splash', 'uploads/profiles', 'android-builds'];
+const uploadDirs = [
+  'uploads',
+  'uploads/icons',
+  'uploads/splash',
+  'uploads/profiles',
+  'uploads/keystores',
+  'android-builds'
+];
 uploadDirs.forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -60,6 +68,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/projects', tabRoutes);
 app.use('/api', formRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/projects', keystoreRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
