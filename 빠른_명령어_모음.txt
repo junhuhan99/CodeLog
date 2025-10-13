@@ -1,0 +1,419 @@
+================================================================================
+CodeLog - 빠른 명령어 모음 (치트시트)
+================================================================================
+
+📋 복사해서 바로 사용하세요!
+💡 YOUR_IP, YOUR_KEY 등은 실제 값으로 변경하세요
+
+================================================================================
+🖥️ 로컬 (Windows PowerShell)
+================================================================================
+
+# 프로젝트 디렉토리로 이동
+cd D:\CodeLog
+
+# Git 상태 확인
+git status
+
+# 변경사항 추가
+git add .
+
+# 커밋
+git commit -m "수정사항 설명"
+
+# GitHub 푸시
+git push origin main
+
+# 프론트엔드 빌드 테스트
+cd frontend
+npm run build
+
+# 프론트엔드 개발 서버
+npm run dev
+
+# 백엔드 개발 서버
+cd ..\backend
+npm run dev
+
+================================================================================
+📤 파일 전송 (로컬 → 서버)
+================================================================================
+
+# 키 파일 위치 변수 설정 (한 번만)
+$KEY = "C:\keys\codelog-keypair.pem"
+$IP = "YOUR_EC2_IP"
+
+# 전체 프로젝트 전송
+scp -i $KEY -r D:\CodeLog ubuntu@${IP}:~
+
+# 단일 파일 전송 (예: ProjectDetail.jsx)
+scp -i $KEY D:\CodeLog\frontend\src\pages\ProjectDetail.jsx ubuntu@${IP}:~/CodeLog/frontend/src/pages/
+
+# 백엔드 파일 전송
+scp -i $KEY D:\CodeLog\backend\server.js ubuntu@${IP}:~/CodeLog/backend/
+
+# 환경 변수 파일 전송 (주의!)
+scp -i $KEY D:\CodeLog\.env ubuntu@${IP}:~/CodeLog/
+
+================================================================================
+🔐 EC2 접속
+================================================================================
+
+# SSH 접속 (일반)
+ssh -i C:\keys\codelog-keypair.pem ubuntu@YOUR_EC2_IP
+
+# SSH 접속 (PowerShell 변수 사용)
+ssh -i $KEY ubuntu@$IP
+
+# 명령 실행 후 즉시 종료
+ssh -i $KEY ubuntu@$IP "docker compose ps"
+
+# 파일 내용 확인
+ssh -i $KEY ubuntu@$IP "cat ~/CodeLog/.env"
+
+================================================================================
+🚀 배포 및 재시작 (EC2 서버)
+================================================================================
+
+# 기본 명령어들
+cd ~/CodeLog                        # 프로젝트 디렉토리 이동
+git pull origin main                # 최신 코드 가져오기
+docker compose down                 # 컨테이너 중지
+docker compose up -d --build        # 빌드 및 시작
+docker compose ps                   # 상태 확인
+docker compose logs -f              # 로그 보기
+
+# 한 줄 명령어 (빠른 재배포)
+cd ~/CodeLog && git pull origin main && docker compose down && docker compose up -d --build
+
+# 개별 서비스 재시작
+docker compose restart frontend
+docker compose restart backend
+docker compose restart mysql
+
+# 특정 서비스만 빌드
+docker compose up -d --build frontend
+
+================================================================================
+📊 로그 확인 (EC2 서버)
+================================================================================
+
+# 전체 로그 실시간 보기
+docker compose logs -f
+
+# 특정 서비스 로그
+docker compose logs -f frontend
+docker compose logs -f backend
+docker compose logs -f mysql
+
+# 최근 100줄만
+docker compose logs --tail=100 backend
+
+# 최근 1시간 로그
+docker compose logs --since 1h backend
+
+# 에러만 필터링
+docker compose logs frontend | grep -i error
+
+# 로그 파일로 저장
+docker compose logs > logs.txt
+
+================================================================================
+🔍 상태 확인 (EC2 서버)
+================================================================================
+
+# Docker 컨테이너 상태
+docker compose ps
+docker ps -a
+
+# 리소스 사용량 실시간
+docker stats
+
+# 디스크 사용량
+df -h
+
+# 메모리 사용량
+free -h
+
+# CPU 사용량
+top
+htop  # 더 보기 좋음
+
+# 포트 확인
+sudo netstat -tulpn | grep :80
+sudo netstat -tulpn | grep :5000
+sudo netstat -tulpn | grep :3306
+
+================================================================================
+🗄️ 데이터베이스 (EC2 서버)
+================================================================================
+
+# MySQL 컨테이너 접속
+docker exec -it codelog-mysql bash
+
+# MySQL 클라이언트 접속
+docker exec -it codelog-mysql mysql -u codelog -p
+
+# 데이터베이스 선택
+USE codelog;
+
+# 테이블 목록
+SHOW TABLES;
+
+# 테이블 구조
+DESCRIBE users;
+
+# 데이터 조회
+SELECT * FROM projects;
+SELECT * FROM users LIMIT 10;
+
+# 백업
+docker exec codelog-mysql mysqldump -u codelog -p codelog > backup_$(date +%Y%m%d).sql
+
+# 복원
+docker exec -i codelog-mysql mysql -u codelog -p codelog < backup.sql
+
+# 마이그레이션 실행
+mysql -u codelog -p codelog < database/migrations/002_add_user_profile.sql
+
+================================================================================
+🧹 정리 및 유지보수 (EC2 서버)
+================================================================================
+
+# Docker 정리
+docker system prune -f              # 사용하지 않는 리소스 삭제
+docker system prune -a --volumes    # 모든 것 삭제 (주의!)
+docker image prune -a               # 이미지만 삭제
+docker volume prune                 # 볼륨만 삭제
+
+# 로그 정리
+sudo journalctl --vacuum-time=7d    # 7일 이상 로그 삭제
+sudo journalctl --vacuum-size=500M  # 500MB 넘는 로그 삭제
+
+# 임시 파일 정리
+rm -rf ~/CodeLog/frontend/node_modules/.cache
+rm -rf ~/CodeLog/backend/node_modules/.cache
+
+# 오래된 빌드 삭제
+find ~/CodeLog/android-builds -mtime +30 -delete
+
+================================================================================
+🔧 문제 해결 (EC2 서버)
+================================================================================
+
+# 컨테이너 재시작
+docker compose restart
+
+# 완전히 재시작 (초기화)
+docker compose down -v
+docker compose up -d --build
+
+# 특정 컨테이너 로그 상세
+docker logs codelog-backend --tail=200
+
+# 컨테이너 내부 접속
+docker exec -it codelog-backend sh
+docker exec -it codelog-frontend sh
+
+# 파일 권한 수정
+sudo chown -R ubuntu:ubuntu ~/CodeLog
+chmod +x ~/backup.sh
+
+# 방화벽 확인
+sudo ufw status
+
+# 프로세스 확인
+ps aux | grep node
+ps aux | grep docker
+
+# 프로세스 종료
+sudo kill -9 PID
+
+================================================================================
+💾 백업 (EC2 서버)
+================================================================================
+
+# 프로젝트 전체 백업
+tar -czf ~/CodeLog-backup-$(date +%Y%m%d).tar.gz ~/CodeLog
+
+# 데이터베이스 백업
+docker exec codelog-mysql mysqldump -u codelog -p codelog > ~/backup-$(date +%Y%m%d).sql
+
+# 업로드 파일 백업
+tar -czf ~/uploads-backup-$(date +%Y%m%d).tar.gz ~/CodeLog/backend/uploads
+
+# 백업 다운로드 (로컬에서)
+scp -i $KEY ubuntu@${IP}:~/CodeLog-backup-*.tar.gz D:\Backups\
+
+# 백업 복원
+tar -xzf CodeLog-backup-20251013.tar.gz
+
+================================================================================
+🔄 업데이트 (EC2 서버)
+================================================================================
+
+# 시스템 업데이트
+sudo apt update
+sudo apt upgrade -y
+
+# Docker 업데이트
+sudo apt install docker-ce docker-ce-cli containerd.io
+
+# Node.js 업데이트 (필요시)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# npm 전역 패키지 업데이트
+sudo npm update -g
+
+================================================================================
+🌐 도메인 및 SSL (EC2 서버)
+================================================================================
+
+# SSL 인증서 갱신
+sudo certbot renew
+
+# SSL 인증서 상태 확인
+sudo certbot certificates
+
+# Nginx 설정 테스트
+docker exec codelog-frontend nginx -t
+
+# Nginx 재시작
+docker compose restart frontend
+
+================================================================================
+📈 모니터링 스크립트
+================================================================================
+
+# 실시간 상태 체크 (EC2)
+watch -n 5 'docker compose ps && df -h && free -h'
+
+# 로그 모니터링
+tail -f ~/backup.log
+
+# 디스크 사용량 모니터링
+watch -n 60 df -h
+
+================================================================================
+🎯 자주 사용하는 워크플로우
+================================================================================
+
+1️⃣ 코드 수정 후 재배포 (Git)
+----------------------------
+# 로컬
+cd D:\CodeLog
+git add .
+git commit -m "Fix: 수정사항"
+git push origin main
+
+# 서버
+ssh -i $KEY ubuntu@$IP
+cd ~/CodeLog && git pull && docker compose down && docker compose up -d --build
+
+
+2️⃣ 긴급 패치 (SCP)
+----------------------------
+# 로컬
+scp -i $KEY D:\CodeLog\backend\server.js ubuntu@${IP}:~/CodeLog/backend/
+
+# 서버
+ssh -i $KEY ubuntu@$IP
+cd ~/CodeLog && docker compose restart backend
+
+
+3️⃣ 데이터베이스 마이그레이션
+----------------------------
+# 로컬에서 파일 전송
+scp -i $KEY D:\CodeLog\database\migrations\*.sql ubuntu@${IP}:~/CodeLog/database/migrations/
+
+# 서버에서 실행
+ssh -i $KEY ubuntu@$IP
+cd ~/CodeLog
+mysql -u codelog -p codelog < database/migrations/002_add_user_profile.sql
+
+
+4️⃣ 완전 재시작 (문제 해결)
+----------------------------
+docker compose down -v
+docker system prune -f
+docker compose up -d --build
+docker compose logs -f
+
+
+5️⃣ 백업 후 업데이트
+----------------------------
+# 백업
+tar -czf ~/backup-$(date +%Y%m%d).tar.gz ~/CodeLog
+docker exec codelog-mysql mysqldump -u codelog -p codelog > ~/db-$(date +%Y%m%d).sql
+
+# 업데이트
+cd ~/CodeLog && git pull && docker compose down && docker compose up -d --build
+
+================================================================================
+📞 긴급 상황 명령어
+================================================================================
+
+# 서비스 다운
+docker compose down
+
+# 모든 컨테이너 강제 종료
+docker kill $(docker ps -q)
+
+# 롤백 (이전 커밋으로)
+git log --oneline
+git checkout COMMIT_HASH
+docker compose down && docker compose up -d --build
+
+# 백업에서 복원
+tar -xzf ~/backup-20251013.tar.gz
+mysql -u codelog -p codelog < ~/db-20251013.sql
+
+================================================================================
+💡 팁 및 트릭
+================================================================================
+
+1. PowerShell 프로필에 별칭 추가:
+   notepad $PROFILE
+
+   # 추가:
+   $KEY = "C:\keys\codelog-keypair.pem"
+   $IP = "13.125.XXX.XXX"
+   function codelog-ssh { ssh -i $KEY ubuntu@$IP }
+
+2. EC2에서 .bashrc에 별칭 추가:
+   nano ~/.bashrc
+
+   # 추가:
+   alias cl='cd ~/CodeLog'
+   alias dps='docker compose ps'
+   alias dlogs='docker compose logs -f'
+   alias drestart='docker compose down && docker compose up -d --build'
+
+3. Git 자동 배포 스크립트:
+   nano ~/deploy.sh
+
+   #!/bin/bash
+   cd ~/CodeLog
+   git pull origin main
+   docker compose down
+   docker compose up -d --build
+
+   chmod +x ~/deploy.sh
+   ~/deploy.sh
+
+================================================================================
+📚 추가 참고 자료
+================================================================================
+
+Docker Compose:     https://docs.docker.com/compose/
+Nginx:              https://nginx.org/en/docs/
+MySQL:              https://dev.mysql.com/doc/
+Git:                https://git-scm.com/doc
+
+================================================================================
+마지막 업데이트: 2025-10-13
+버전: 1.2
+================================================================================
+
+저장 팁: 이 파일을 즐겨찾기에 추가하여 빠르게 참조하세요!

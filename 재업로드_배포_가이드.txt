@@ -1,0 +1,340 @@
+================================================================================
+CodeLog - 코드 수정 후 재업로드 및 재배포 가이드
+================================================================================
+
+📅 작성일: 2025-10-13
+📝 대상: 코드 수정 후 서버에 재배포하려는 사용자
+
+================================================================================
+목차
+================================================================================
+1. 로컬에서 코드 수정 (Windows)
+2. Git을 사용한 재배포 (권장)
+3. SCP를 사용한 파일 전송
+4. 서버에서 재시작
+5. 에러 해결
+6. 빠른 참조 명령어
+
+================================================================================
+1. 로컬에서 코드 수정 (Windows)
+================================================================================
+
+1.1. 수정한 파일 확인
+------------------------------
+수정한 파일:
+- frontend/src/pages/ProjectDetail.jsx (빌드 다운로드 에러 수정)
+
+1.2. 프론트엔드 빌드 테스트 (선택사항)
+------------------------------
+# PowerShell에서 실행
+cd D:\CodeLog\frontend
+npm run build
+
+# 에러가 없으면 성공!
+# dist 폴더가 생성됨
+
+================================================================================
+2. Git을 사용한 재배포 (권장 ⭐)
+================================================================================
+
+2.1. 로컬에서 Git 커밋
+------------------------------
+# PowerShell에서 실행
+cd D:\CodeLog
+
+# 변경사항 확인
+git status
+
+# 변경사항 추가
+git add .
+
+# 커밋
+git commit -m "Fix: ProjectDetail download function error"
+
+# GitHub에 푸시
+git push origin main
+
+
+2.2. EC2 서버에서 코드 가져오기
+------------------------------
+# EC2에 SSH 접속
+ssh -i codelog-keypair.pem ubuntu@YOUR_EC2_IP
+
+# 프로젝트 디렉토리로 이동
+cd ~/CodeLog
+
+# 최신 코드 가져오기
+git pull origin main
+
+# Docker 재시작
+docker compose down
+docker compose up -d --build
+
+# 완료! (5-10분 소요)
+
+
+2.3. 배포 확인
+------------------------------
+# 로그 확인
+docker compose logs -f frontend
+
+# Ctrl+C로 종료
+
+# 브라우저에서 확인
+http://YOUR_EC2_IP
+
+================================================================================
+3. SCP를 사용한 파일 전송 (Git 미사용 시)
+================================================================================
+
+3.1. 방법 1: 전체 프로젝트 전송
+------------------------------
+# PowerShell에서 실행 (로컬)
+cd D:\
+
+# 기존 파일 백업 (EC2에서)
+ssh -i codelog-keypair.pem ubuntu@YOUR_EC2_IP "mv ~/CodeLog ~/CodeLog.backup"
+
+# 새 파일 전송
+scp -i codelog-keypair.pem -r D:\CodeLog ubuntu@YOUR_EC2_IP:~
+
+# 완료!
+
+
+3.2. 방법 2: 수정한 파일만 전송 (빠름 ⚡)
+------------------------------
+# PowerShell에서 실행
+scp -i codelog-keypair.pem D:\CodeLog\frontend\src\pages\ProjectDetail.jsx ubuntu@YOUR_EC2_IP:~/CodeLog/frontend/src/pages/
+
+# 완료!
+
+
+3.3. EC2에서 재시작
+------------------------------
+# EC2에 SSH 접속
+ssh -i codelog-keypair.pem ubuntu@YOUR_EC2_IP
+
+# 프로젝트 디렉토리로 이동
+cd ~/CodeLog
+
+# Docker 재시작
+docker compose down
+docker compose up -d --build
+
+# 완료!
+
+================================================================================
+4. 서버에서 재시작
+================================================================================
+
+4.1. 전체 재시작 (권장)
+------------------------------
+cd ~/CodeLog
+docker compose down
+docker compose up -d --build
+
+# 로그 확인
+docker compose logs -f
+
+# Ctrl+C로 종료
+
+
+4.2. 프론트엔드만 재시작 (빠름)
+------------------------------
+docker compose restart frontend
+
+
+4.3. 백엔드만 재시작
+------------------------------
+docker compose restart backend
+
+
+4.4. 모든 컨테이너 상태 확인
+------------------------------
+docker compose ps
+
+# 예상 출력:
+# NAME                IMAGE              STATUS
+# codelog-mysql       mysql:8.0          Up (healthy)
+# codelog-backend     ...                Up (healthy)
+# codelog-frontend    ...                Up
+
+================================================================================
+5. 에러 해결
+================================================================================
+
+5.1. "p is not a function" 에러 (이미 수정됨)
+------------------------------
+원인: ProjectDetail.jsx의 handleDownloadBuild 함수에서 발생
+해결: fetch API를 사용한 방식으로 수정 완료
+
+수정 내용:
+- api.get with responseType: 'blob' → fetch API 사용
+- 더 안전한 blob 처리
+- 에러 핸들링 강화
+
+
+5.2. 빌드가 실패하는 경우
+------------------------------
+# 로그 확인
+docker compose logs frontend
+
+# 캐시 삭제 후 재빌드
+docker compose down
+docker system prune -f
+docker compose up -d --build
+
+
+5.3. 포트 충돌
+------------------------------
+# 포트 사용 확인
+sudo netstat -tulpn | grep :80
+sudo netstat -tulpn | grep :5000
+
+# 충돌하는 프로세스 종료
+sudo kill -9 PID
+
+
+5.4. 디스크 공간 부족
+------------------------------
+# 디스크 사용량 확인
+df -h
+
+# Docker 정리
+docker system prune -a --volumes
+
+# 오래된 로그 삭제
+sudo journalctl --vacuum-time=7d
+
+================================================================================
+6. 빠른 참조 명령어
+================================================================================
+
+6.1. 로컬 → 서버 전송 (Windows PowerShell)
+------------------------------
+# 단일 파일
+scp -i C:\keys\codelog-keypair.pem D:\CodeLog\frontend\src\pages\ProjectDetail.jsx ubuntu@YOUR_IP:~/CodeLog/frontend/src/pages/
+
+# 전체 프로젝트
+scp -i C:\keys\codelog-keypair.pem -r D:\CodeLog ubuntu@YOUR_IP:~
+
+
+6.2. 서버 재시작 (EC2)
+------------------------------
+cd ~/CodeLog
+docker compose down && docker compose up -d --build
+
+
+6.3. 로그 확인
+------------------------------
+# 전체 로그
+docker compose logs -f
+
+# 프론트엔드만
+docker compose logs -f frontend
+
+# 백엔드만
+docker compose logs -f backend
+
+# 최근 100줄
+docker compose logs --tail=100 backend
+
+
+6.4. 컨테이너 상태
+------------------------------
+docker compose ps
+docker stats
+
+================================================================================
+7. 체크리스트 ✓
+================================================================================
+
+재배포 전:
+□ 로컬에서 코드 수정 완료
+□ 테스트 완료 (선택)
+□ Git 커밋 (Git 사용 시)
+
+재배포 중:
+□ EC2 SSH 접속
+□ 최신 코드 가져오기 (git pull 또는 scp)
+□ docker compose down
+□ docker compose up -d --build
+
+재배포 후:
+□ docker compose ps 확인
+□ 로그 확인 (에러 없는지)
+□ 브라우저에서 접속 확인
+□ 기능 테스트
+
+================================================================================
+8. 주의사항 ⚠️
+================================================================================
+
+1. .env 파일 주의
+   - .env 파일은 Git에 올리지 마세요
+   - 서버의 .env는 그대로 유지하세요
+
+2. node_modules 전송 금지
+   - node_modules는 전송하지 마세요 (용량 큼)
+   - Docker가 자동으로 설치합니다
+
+3. 백업 권장
+   - 중요한 변경 전 백업하세요
+   ssh ubuntu@YOUR_IP "tar -czf ~/CodeLog-backup-$(date +%Y%m%d).tar.gz ~/CodeLog"
+
+4. 데이터베이스 백업
+   docker exec codelog-mysql mysqldump -u codelog -p codelog > backup.sql
+
+================================================================================
+9. 트러블슈팅
+================================================================================
+
+Q: Git pull이 충돌을 일으킵니다
+A: git stash && git pull && git stash pop
+
+Q: Docker 빌드가 매우 느립니다
+A: 인터넷 연결 확인, 또는 로컬에서 빌드 후 이미지 전송 고려
+
+Q: 변경사항이 반영되지 않습니다
+A: 브라우저 캐시 삭제 (Ctrl+Shift+R)
+
+Q: "permission denied" 에러
+A: sudo를 사용하거나 파일 권한 확인
+   sudo chown -R ubuntu:ubuntu ~/CodeLog
+
+================================================================================
+10. 추가 팁 💡
+================================================================================
+
+1. 개발 환경 로컬 실행
+   # 로컬에서 테스트하기
+   cd D:\CodeLog\frontend
+   npm run dev
+
+   cd D:\CodeLog\backend
+   npm run dev
+
+2. Hot Reload 개발
+   # 코드 변경 시 자동 재시작
+   docker compose watch  # Docker Compose v2.22+
+
+3. 로그 파일로 저장
+   docker compose logs > logs.txt
+
+4. 특정 시점으로 롤백
+   git log  # 커밋 해시 확인
+   git checkout COMMIT_HASH
+   docker compose down && docker compose up -d --build
+
+================================================================================
+연락처
+================================================================================
+문제가 계속되면:
+- GitHub Issues에 보고
+- 로그 파일 첨부
+- 에러 메시지 스크린샷
+
+================================================================================
+마지막 업데이트: 2025-10-13
+버전: 1.2
+================================================================================
