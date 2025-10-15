@@ -61,14 +61,15 @@ app.use('/builds', express.static('android-builds'));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/projects', buildRoutes);
-app.use('/api/projects', pushRoutes);
+// Register specific routes before general routes to avoid conflicts
+app.use('/api/projects', buildRoutes);  // /:projectId/builds/...
+app.use('/api/projects', pushRoutes);   // /:projectId/push/...
+app.use('/api/projects', tabRoutes);    // /:projectId/tabs/...
+app.use('/api/projects', keystoreRoutes);  // /:projectId/keystore/...
+app.use('/api/projects', projectRoutes);  // /:id - most general, register last
 app.use('/api/upload', uploadRoutes);
-app.use('/api/projects', tabRoutes);
 app.use('/api', formRoutes);
 app.use('/api/stats', statsRoutes);
-app.use('/api/projects', keystoreRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
