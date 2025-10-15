@@ -226,7 +226,7 @@ export default function ProjectDetail() {
 
       // Download file using fetch with auth
       const token = localStorage.getItem('token')
-      const downloadUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/projects/${id}/builds/${buildId}/download`
+      const downloadUrl = `/api/projects/${id}/builds/${buildId}/download`
 
       showAlert('info', '다운로드를 준비하는 중...')
 
