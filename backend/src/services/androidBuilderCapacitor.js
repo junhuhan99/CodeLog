@@ -332,35 +332,30 @@ const buildAPK = async (buildDir, project, log) => {
     }
 
     // Build APK using Gradle
+    // Use assembleDebug to auto-sign with debug keystore (works without manual keystore setup)
     log('Building APK with Gradle (this may take 5-10 minutes)...');
 
     const gradlewFullCmd = isWindows ? `"${gradlewPath}"` : `"${gradlewPath}"`;
     const { stdout, stderr } = await execAsync(
-      `cd "${androidDir}" && ${gradlewFullCmd} assembleRelease --no-daemon`,
+      `cd "${androidDir}" && ${gradlewFullCmd} assembleDebug --no-daemon`,
       { maxBuffer: 1024 * 1024 * 10, timeout: 600000 } // 10 minutes timeout
     );
 
     if (stdout) log('Gradle output: ' + stdout.substring(Math.max(0, stdout.length - 1000)));
     if (stderr) log('Gradle stderr: ' + stderr.substring(Math.max(0, stderr.length - 1000)));
 
-    // Find the APK file
-    const apkPath = path.join(androidDir, 'app/build/outputs/apk/release/app-release-unsigned.apk');
-    const apkPathSigned = path.join(androidDir, 'app/build/outputs/apk/release/app-release.apk');
+    // Find the APK file (debug builds are automatically signed)
+    const apkPath = path.join(androidDir, 'app/build/outputs/apk/debug/app-debug.apk');
+    const apkPathSigned = null; // Debug build is already signed
 
-    // Check which file exists
+    // Check if APK file exists (debug builds are already signed)
     let finalApkPath = null;
     try {
-      await fs.access(apkPathSigned);
-      finalApkPath = apkPathSigned;
-      log('Found signed APK: ' + apkPathSigned);
+      await fs.access(apkPath);
+      finalApkPath = apkPath;
+      log('Found debug APK (auto-signed): ' + apkPath);
     } catch {
-      try {
-        await fs.access(apkPath);
-        finalApkPath = apkPath;
-        log('Found unsigned APK: ' + apkPath);
-      } catch {
-        throw new Error('APK file was not generated. Check build logs for errors.');
-      }
+      throw new Error('APK file was not generated. Check build logs for errors.');
     }
 
     // Verify APK is valid (check file size)
