@@ -1,16 +1,17 @@
-FROM node:18-alpine
+FROM node:18-slim
 
 WORKDIR /app
 
 # Install Java 17 and other build dependencies
-RUN apk add --no-cache \
-    openjdk17 \
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jdk \
     bash \
     wget \
-    unzip
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set Java environment
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Copy package files

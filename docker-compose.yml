@@ -42,7 +42,7 @@ services:
       JWT_EXPIRES_IN: 7d
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       # Android Build Environment Variables
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
       ANDROID_HOME: /android-sdk
       ANDROID_SDK_ROOT: /android-sdk
       GRADLE_HOME: /opt/gradle/gradle-8.4
