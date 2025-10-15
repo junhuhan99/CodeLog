@@ -267,11 +267,15 @@ const initializeCapacitor = async (buildDir, project, log) => {
       overrideUserAgent: null,
       appendUserAgent: null,
       // Enable all necessary WebView features
-      useLegacyBridge: false
+      useLegacyBridge: false,
+      // Keep all navigation within WebView
+      allowNavigation: ['*']
     },
     server: {
       cleartext: true, // Allow HTTP connections
-      androidScheme: 'https' // Use HTTPS scheme for local content
+      androidScheme: 'https', // Use HTTPS scheme for local content
+      // Allow all external URLs to load in WebView
+      allowNavigation: ['*']
     }
   };
 
@@ -364,9 +368,88 @@ const configureAndroidManifest = async (buildDir, project, log) => {
     await fs.writeFile(manifestPath, manifestContent, 'utf8');
     log('✓ AndroidManifest.xml configured successfully');
 
+    // Configure MainActivity to keep all URLs in WebView
+    await configureMainActivity(buildDir, project, log);
+
   } catch (error) {
     log('Warning: Failed to configure AndroidManifest.xml: ' + error.message);
     // Don't throw error - continue with build even if manifest modification fails
+  }
+};
+
+const configureMainActivity = async (buildDir, project, log) => {
+  try {
+    // Convert package name to directory path (e.g. com.hello.app -> com/hello/app)
+    const packagePath = project.package_name.replace(/\./g, '/');
+    const mainActivityPath = path.join(buildDir, `android/app/src/main/java/${packagePath}/MainActivity.java`);
+
+    // Check if MainActivity exists
+    try {
+      await fs.access(mainActivityPath);
+    } catch {
+      log('MainActivity.java not found, will be created by Capacitor');
+      return;
+    }
+
+    // Read MainActivity
+    let activityContent = await fs.readFile(mainActivityPath, 'utf8');
+
+    // Check if already configured
+    if (activityContent.includes('shouldOverrideUrlLoading')) {
+      log('✓ MainActivity already configured for WebView');
+      return;
+    }
+
+    // Add necessary imports if not present
+    if (!activityContent.includes('import android.os.Bundle')) {
+      activityContent = activityContent.replace(
+        /^(package .+;)/m,
+        '$1\n\nimport android.os.Bundle;'
+      );
+    }
+    if (!activityContent.includes('import android.webkit.WebView')) {
+      activityContent = activityContent.replace(
+        /^(import android\.os\.Bundle;)/m,
+        '$1\nimport android.webkit.WebView;\nimport android.webkit.WebViewClient;\nimport android.webkit.WebResourceRequest;'
+      );
+    }
+
+    // Add WebView configuration
+    const webViewConfig = `
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Configure WebView to keep all URLs within the app
+        this.bridge.getWebView().setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                // Load all URLs in WebView instead of external browser
+                view.loadUrl(url);
+                return true;
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                // Load all URLs in WebView instead of external browser
+                view.loadUrl(request.getUrl().toString());
+                return true;
+            }
+        });
+    }`;
+
+    // Insert before the closing brace of the class
+    activityContent = activityContent.replace(
+      /(\s*)(}\s*)$/,
+      `$1${webViewConfig}\n$1$2`
+    );
+
+    await fs.writeFile(mainActivityPath, activityContent, 'utf8');
+    log('✓ MainActivity configured to keep URLs in WebView');
+
+  } catch (error) {
+    log('Warning: Failed to configure MainActivity: ' + error.message);
+    // Don't throw error - continue with build
   }
 };
 
