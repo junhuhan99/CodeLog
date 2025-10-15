@@ -136,7 +136,7 @@ const downloadBuild = async (req, res) => {
     // Check if file exists
     const fs = require('fs');
     const path = require('path');
-    const filePath = path.join(__dirname, '../../../', build.build_file);
+    const filePath = path.join(__dirname, '../../', build.build_file);
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: '빌드 파일이 존재하지 않습니다' });
