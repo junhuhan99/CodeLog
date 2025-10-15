@@ -50,7 +50,7 @@ services:
       - uploads-data:/app/uploads
       - builds-data:/app/android-builds
       # Mount Android SDK and Gradle from host (after running setup script)
-      - ${HOME}/android-sdk:/android-sdk:ro
+      - ${HOME}/android-sdk:/android-sdk
       - /opt/gradle:/opt/gradle:ro
     ports:
       - "5000:5000"
