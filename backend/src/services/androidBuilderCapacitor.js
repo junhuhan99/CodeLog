@@ -118,7 +118,11 @@ const buildAndroidApp = async (buildId, project, buildType) => {
     log('Syncing web assets...');
     await syncCapacitor(buildDir, log);
 
-    // 5. Build Android app
+    // 5. Configure Android permissions and settings
+    log('Configuring Android manifest and permissions...');
+    await configureAndroidManifest(buildDir, project, log);
+
+    // 6. Build Android app
     log(`Building ${buildType.toUpperCase()}...`);
     let buildOutput;
     if (buildType === 'apk') {
@@ -242,7 +246,7 @@ const initializeCapacitor = async (buildDir, project, log) => {
     throw new Error('Capacitor dependencies installation failed. Please ensure Node.js and npm are installed.');
   }
 
-  // Create capacitor.config.json
+  // Create capacitor.config.json with WebView settings
   const capacitorConfig = {
     appId: project.package_name,
     appName: project.app_name,
@@ -257,7 +261,17 @@ const initializeCapacitor = async (buildDir, project, log) => {
     },
     android: {
       allowMixedContent: true,
-      backgroundColor: project.theme_color || '#ffffff'
+      backgroundColor: project.theme_color || '#ffffff',
+      // WebView settings for better compatibility
+      webContentsDebuggingEnabled: true,
+      overrideUserAgent: null,
+      appendUserAgent: null,
+      // Enable all necessary WebView features
+      useLegacyBridge: false
+    },
+    server: {
+      cleartext: true, // Allow HTTP connections
+      androidScheme: 'https' // Use HTTPS scheme for local content
     }
   };
 
@@ -306,6 +320,53 @@ const syncCapacitor = async (buildDir, log) => {
   } catch (error) {
     log('Error syncing Capacitor: ' + error.message);
     throw new Error('Failed to sync Capacitor. Build cannot continue.');
+  }
+};
+
+const configureAndroidManifest = async (buildDir, project, log) => {
+  try {
+    const manifestPath = path.join(buildDir, 'android/app/src/main/AndroidManifest.xml');
+
+    // Read AndroidManifest.xml
+    let manifestContent = await fs.readFile(manifestPath, 'utf8');
+
+    // Check if INTERNET permission already exists
+    if (!manifestContent.includes('android.permission.INTERNET')) {
+      // Add INTERNET permission after <manifest> tag
+      manifestContent = manifestContent.replace(
+        /<manifest([^>]*)>/,
+        '<manifest$1>\n    <uses-permission android:name="android.permission.INTERNET" />'
+      );
+      log('✓ Added INTERNET permission');
+    } else {
+      log('✓ INTERNET permission already exists');
+    }
+
+    // Check if ACCESS_NETWORK_STATE permission exists
+    if (!manifestContent.includes('android.permission.ACCESS_NETWORK_STATE')) {
+      manifestContent = manifestContent.replace(
+        /<manifest([^>]*)>/,
+        '<manifest$1>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />'
+      );
+      log('✓ Added ACCESS_NETWORK_STATE permission');
+    }
+
+    // Enable cleartext traffic for HTTP (add usesCleartextTraffic to application tag)
+    if (!manifestContent.includes('android:usesCleartextTraffic')) {
+      manifestContent = manifestContent.replace(
+        /<application([^>]*)>/,
+        '<application$1 android:usesCleartextTraffic="true">'
+      );
+      log('✓ Enabled cleartext traffic (HTTP support)');
+    }
+
+    // Write modified manifest back
+    await fs.writeFile(manifestPath, manifestContent, 'utf8');
+    log('✓ AndroidManifest.xml configured successfully');
+
+  } catch (error) {
+    log('Warning: Failed to configure AndroidManifest.xml: ' + error.message);
+    // Don't throw error - continue with build even if manifest modification fails
   }
 };
 
