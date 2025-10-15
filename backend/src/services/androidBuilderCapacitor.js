@@ -494,7 +494,7 @@ const buildAAB = async (buildDir, project, log) => {
 
 const generateHTML = (project) => {
   if (project.project_type === 'url') {
-    // For URL-based projects, create a simple redirect
+    // For URL-based projects, redirect directly to avoid X-Frame-Options blocking
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -542,15 +542,6 @@ const generateHTML = (project) => {
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: none;
-        }
-        iframe.loaded {
-            display: block;
-        }
     </style>
 </head>
 <body>
@@ -558,24 +549,12 @@ const generateHTML = (project) => {
         ${project.app_icon ? '<img src="icon.png" alt="App Icon">' : ''}
         <div class="spinner"></div>
     </div>
-    <iframe id="app-frame" src="${project.website_url}" allow="geolocation; microphone; camera"></iframe>
     <script>
-        const frame = document.getElementById('app-frame');
-        const loading = document.getElementById('loading');
-
-        frame.onload = function() {
-            setTimeout(() => {
-                loading.style.display = 'none';
-                frame.classList.add('loaded');
-            }, 500);
-        };
-
-        // Fallback if iframe doesn't load
-        setTimeout(() => {
-            if (!frame.classList.contains('loaded')) {
-                window.location.href = '${project.website_url}';
-            }
-        }, 5000);
+        // Direct navigation to avoid X-Frame-Options blocking
+        // Show loading screen briefly before redirect
+        setTimeout(function() {
+            window.location.href = '${project.website_url}';
+        }, 1000);
     </script>
 </body>
 </html>`;
