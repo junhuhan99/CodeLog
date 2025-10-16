@@ -414,7 +414,7 @@ const configureMainActivity = async (buildDir, project, log) => {
       );
     }
 
-    // Add WebView configuration with immediate execution
+    // Add WebView configuration to directly load external URL
     const webViewConfig = `
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -426,7 +426,6 @@ const configureMainActivity = async (buildDir, project, log) => {
         super.onStart();
 
         // Configure WebView to keep all URLs within the app
-        // Set this in onStart to ensure WebView is initialized
         WebView webView = this.bridge.getWebView();
         if (webView != null) {
             // Enable JavaScript and other essential settings
@@ -434,6 +433,8 @@ const configureMainActivity = async (buildDir, project, log) => {
             settings.setJavaScriptEnabled(true);
             settings.setDomStorageEnabled(true);
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            settings.setAllowFileAccess(true);
+            settings.setAllowContentAccess(true);
 
             // Set WebViewClient to handle all navigation
             webView.setWebViewClient(new WebViewClient() {
@@ -449,6 +450,15 @@ const configureMainActivity = async (buildDir, project, log) => {
                     // Load all URLs in WebView instead of external browser
                     view.loadUrl(request.getUrl().toString());
                     return true;
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    // If we're still on a local page, redirect to the target URL
+                    if (url != null && (url.startsWith("http://localhost") || url.startsWith("https://localhost"))) {
+                        view.loadUrl("${project.website_url}");
+                    }
                 }
             });
         }
