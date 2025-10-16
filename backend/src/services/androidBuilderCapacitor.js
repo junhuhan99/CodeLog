@@ -273,7 +273,7 @@ const initializeCapacitor = async (buildDir, project, log) => {
     },
     server: {
       cleartext: true, // Allow HTTP connections
-      androidScheme: 'https', // Use HTTPS scheme for local content
+      androidScheme: 'http', // Use HTTP scheme for better compatibility
       // Allow all external URLs to load in WebView
       allowNavigation: ['*']
     }
@@ -584,6 +584,7 @@ const generateHTML = (project) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="refresh" content="1;url=${project.website_url}">
     <title>${project.app_name}</title>
     <style>
         * {
@@ -634,9 +635,9 @@ const generateHTML = (project) => {
     </div>
     <script>
         // Direct navigation to avoid X-Frame-Options blocking
-        // Show loading screen briefly before redirect
+        // Use replace() to avoid adding to history
         setTimeout(function() {
-            window.location.href = '${project.website_url}';
+            window.location.replace('${project.website_url}');
         }, 1000);
     </script>
 </body>
