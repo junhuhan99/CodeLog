@@ -410,32 +410,48 @@ const configureMainActivity = async (buildDir, project, log) => {
     if (!activityContent.includes('import android.webkit.WebView')) {
       activityContent = activityContent.replace(
         /^(import android\.os\.Bundle;)/m,
-        '$1\nimport android.webkit.WebView;\nimport android.webkit.WebViewClient;\nimport android.webkit.WebResourceRequest;'
+        '$1\nimport android.webkit.WebView;\nimport android.webkit.WebViewClient;\nimport android.webkit.WebResourceRequest;\nimport android.webkit.WebSettings;'
       );
     }
 
-    // Add WebView configuration
+    // Add WebView configuration with immediate execution
     const webViewConfig = `
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
 
         // Configure WebView to keep all URLs within the app
-        this.bridge.getWebView().setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // Load all URLs in WebView instead of external browser
-                view.loadUrl(url);
-                return true;
-            }
+        // Set this in onStart to ensure WebView is initialized
+        WebView webView = this.bridge.getWebView();
+        if (webView != null) {
+            // Enable JavaScript and other essential settings
+            WebSettings settings = webView.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                // Load all URLs in WebView instead of external browser
-                view.loadUrl(request.getUrl().toString());
-                return true;
-            }
-        });
+            // Set WebViewClient to handle all navigation
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                    // Load all URLs in WebView instead of external browser
+                    view.loadUrl(url);
+                    return true;
+                }
+
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    // Load all URLs in WebView instead of external browser
+                    view.loadUrl(request.getUrl().toString());
+                    return true;
+                }
+            });
+        }
     }`;
 
     // Insert before the closing brace of the class
