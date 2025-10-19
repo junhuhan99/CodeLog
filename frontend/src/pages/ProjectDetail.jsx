@@ -534,28 +534,44 @@ export default function ProjectDetail() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p className="font-medium text-yellow-900 mb-2">
-                      Firebase 설정이 필요합니다
-                    </p>
-                    <p className="text-sm text-yellow-700 mb-4">
-                      실제 푸시 알림을 전송하려면 Firebase 서비스 계정 키를 업로드해주세요.
-                    </p>
-                    <div>
-                      <label className="btn btn-outline cursor-pointer">
-                        <Upload className="w-4 h-4 mr-2" />
-                        {uploadLoading ? '업로드 중...' : 'Firebase JSON 업로드'}
-                        <input
-                          type="file"
-                          accept=".json"
-                          onChange={handleUploadFirebaseConfig}
-                          className="hidden"
-                          disabled={uploadLoading}
-                        />
-                      </label>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Firebase Console에서 다운로드한 서비스 계정 키 JSON 파일을 업로드하세요.
+                  <div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <h3 className="font-medium text-blue-900 mb-2">
+                        📘 Firebase 설정 가이드
+                      </h3>
+                      <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                        <li>Firebase Console (<a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="underline">console.firebase.google.com</a>) 접속</li>
+                        <li>프로젝트 선택 또는 새 프로젝트 생성</li>
+                        <li>좌측 메뉴 설정 ⚙️ {'>'} 프로젝트 설정 클릭</li>
+                        <li>"서비스 계정" 탭 클릭</li>
+                        <li>"새 비공개 키 생성" 버튼 클릭</li>
+                        <li>다운로드된 JSON 파일을 아래에 업로드</li>
+                      </ol>
+                    </div>
+
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="font-medium text-yellow-900 mb-2">
+                        Firebase 설정이 필요합니다
                       </p>
+                      <p className="text-sm text-yellow-700 mb-4">
+                        실제 푸시 알림을 전송하려면 Firebase 서비스 계정 키를 업로드해주세요.
+                      </p>
+                      <div>
+                        <label className="btn btn-outline cursor-pointer">
+                          <Upload className="w-4 h-4 mr-2" />
+                          {uploadLoading ? '업로드 중...' : 'Firebase JSON 업로드'}
+                          <input
+                            type="file"
+                            accept=".json"
+                            onChange={handleUploadFirebaseConfig}
+                            className="hidden"
+                            disabled={uploadLoading}
+                          />
+                        </label>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Firebase Console에서 다운로드한 서비스 계정 키 JSON 파일 (예: your-project-firebase-adminsdk-xxxxx.json)
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -43,8 +43,8 @@ const features = [
   },
   {
     icon: Layout,
-    title: '하단 탭바',
-    description: '여러 페이지를 탭으로 구성하여 네이티브 앱 경험을 제공하세요.',
+    title: '하단 탭바 네비게이션',
+    description: '여러 페이지를 탭으로 구성하여 네이티브 앱 경험을 제공하세요. 각 탭마다 다른 URL 설정 가능.',
     color: 'from-green-400 to-teal-500'
   },
   {
@@ -54,9 +54,9 @@ const features = [
     color: 'from-cyan-400 to-blue-500'
   },
   {
-    icon: Globe,
-    title: '다국어 지원',
-    description: '한국어, 영어 등 여러 언어로 앱을 제공할 수 있습니다.',
+    icon: Settings,
+    title: '템플릿 기반 빌드',
+    description: '로그인, 회원가입, 게시판, 마이페이지 등 기본 템플릿으로 빠르게 앱을 만드세요.',
     color: 'from-indigo-400 to-purple-500'
   },
   {
@@ -70,6 +70,12 @@ const features = [
     title: '개발자 친화적',
     description: 'REST API로 모든 기능에 접근 가능. CI/CD 통합도 간편합니다.',
     color: 'from-gray-400 to-gray-600'
+  },
+  {
+    icon: Globe,
+    title: 'URL 및 템플릿 모드',
+    description: '기존 웹사이트를 앱으로 변환하거나, 템플릿으로 새로운 앱을 만들 수 있습니다.',
+    color: 'from-teal-400 to-cyan-500'
   },
   {
     icon: Sparkles,

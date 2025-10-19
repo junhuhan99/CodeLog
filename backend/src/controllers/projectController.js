@@ -202,7 +202,10 @@ const uploadFirebaseConfig = async (req, res) => {
 
     // Validate Firebase config JSON
     if (!firebase_config) {
-      return res.status(400).json({ error: 'Firebase 설정을 제공해주세요' });
+      return res.status(400).json({
+        error: 'Firebase 설정을 제공해주세요',
+        guide: 'Firebase Console > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성에서 JSON 파일을 다운로드하세요.'
+      });
     }
 
     let configData;
@@ -215,38 +218,49 @@ const uploadFirebaseConfig = async (req, res) => {
       return res.status(400).json({ error: '유효하지 않은 JSON 형식입니다' });
     }
 
-    // Validate required fields with detailed error messages
-    const requiredFields = [
-      { key: 'project_id', name: 'Project ID (프로젝트 ID)' },
-      { key: 'private_key', name: 'Private Key (프라이빗 키)' },
-      { key: 'client_email', name: 'Client Email (클라이언트 이메일)' }
-    ];
-
-    const missingFields = requiredFields.filter(field => !configData[field.key]);
-
-    if (missingFields.length > 0) {
+    // Validate that this is a Firebase service account JSON
+    if (configData.type !== 'service_account') {
       return res.status(400).json({
-        error: `Firebase 서비스 계정 JSON 파일의 필수 필드가 누락되었습니다`,
-        missing_fields: missingFields.map(f => f.name),
-        details: `다음 필드가 필요합니다: ${missingFields.map(f => f.name).join(', ')}`,
-        hint: 'Firebase Console > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성에서 다운로드한 JSON 파일을 업로드해주세요.',
-        received_fields: Object.keys(configData).join(', ')
+        error: '올바른 Firebase 서비스 계정 JSON 파일이 아닙니다',
+        details: 'type 필드가 "service_account"여야 합니다',
+        received_type: configData.type || '없음'
+      });
+    }
+
+    // Extract required fields
+    const projectId = configData.project_id;
+    const privateKey = configData.private_key;
+    const clientEmail = configData.client_email;
+
+    // Validate required fields exist
+    if (!projectId || !privateKey || !clientEmail) {
+      const missing = [];
+      if (!projectId) missing.push('project_id');
+      if (!privateKey) missing.push('private_key');
+      if (!clientEmail) missing.push('client_email');
+
+      return res.status(400).json({
+        error: 'Firebase 서비스 계정 JSON 파일의 필수 필드가 누락되었습니다',
+        missing_fields: missing,
+        guide: 'Firebase Console > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성에서 올바른 JSON 파일을 다운로드하세요.',
+        received_fields: Object.keys(configData)
       });
     }
 
     // Validate private key format
-    if (!configData.private_key.includes('BEGIN PRIVATE KEY')) {
+    if (!privateKey.includes('BEGIN PRIVATE KEY')) {
       return res.status(400).json({
         error: 'Private Key 형식이 올바르지 않습니다',
-        details: 'Private Key는 "-----BEGIN PRIVATE KEY-----"로 시작해야 합니다'
+        details: 'private_key는 "-----BEGIN PRIVATE KEY-----"로 시작해야 합니다'
       });
     }
 
     // Validate client email format
-    if (!configData.client_email.includes('@') || !configData.client_email.includes('.iam.gserviceaccount.com')) {
+    if (!clientEmail.includes('@') || !clientEmail.includes('.iam.gserviceaccount.com')) {
       return res.status(400).json({
         error: 'Client Email 형식이 올바르지 않습니다',
-        details: 'Client Email은 Firebase 서비스 계정 이메일이어야 합니다 (예: firebase-adminsdk@your-project.iam.gserviceaccount.com)'
+        details: 'client_email은 Firebase 서비스 계정 이메일이어야 합니다 (예: firebase-adminsdk@xxx.iam.gserviceaccount.com)',
+        received: clientEmail
       });
     }
 
@@ -259,9 +273,9 @@ const uploadFirebaseConfig = async (req, res) => {
            firebase_config_uploaded = TRUE
        WHERE id = ? AND user_id = ?`,
       [
-        configData.project_id,
-        configData.private_key,
-        configData.client_email,
+        projectId,
+        privateKey,
+        clientEmail,
         req.params.id,
         req.user.id
       ]
