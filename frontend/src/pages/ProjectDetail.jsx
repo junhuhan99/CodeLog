@@ -173,6 +173,7 @@ export default function ProjectDetail() {
 
     if (!file.name.endsWith('.json')) {
       showAlert('error', 'JSON 파일만 업로드할 수 있습니다')
+      e.target.value = '' // Reset input
       return
     }
 
@@ -189,12 +190,19 @@ export default function ProjectDetail() {
 
       showAlert('success', 'Firebase 설정이 업로드되었습니다')
       fetchProject()
+      e.target.value = '' // Reset input
     } catch (error) {
+      console.error('Firebase upload error:', error)
       if (error instanceof SyntaxError) {
         showAlert('error', '유효하지 않은 JSON 파일입니다')
       } else {
-        showAlert('error', error.response?.data?.error || 'Firebase 설정 업로드에 실패했습니다')
+        const errorMsg = error.response?.data?.error || 'Firebase 설정 업로드에 실패했습니다'
+        const errorDetails = error.response?.data?.details || ''
+        const errorGuide = error.response?.data?.guide || ''
+
+        showAlert('error', `${errorMsg}${errorDetails ? '\n\n' + errorDetails : ''}${errorGuide ? '\n\n' + errorGuide : ''}`)
       }
+      e.target.value = '' // Reset input
     } finally {
       setUploadLoading(false)
     }
