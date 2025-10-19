@@ -83,6 +83,7 @@ const generateAndroidProject = async (buildDir, project, log) => {
     'app/src/main/res/mipmap-xhdpi',
     'app/src/main/res/mipmap-xxhdpi',
     'app/src/main/res/mipmap-xxxhdpi',
+    'app/src/main/assets',
     'gradle/wrapper'
   ];
 
@@ -181,6 +182,17 @@ android.enableJetifier=true
       }
     } catch (err) {
       log('Warning: Could not copy splash image: ' + err.message);
+    }
+  }
+
+  // Generate template HTML for template projects
+  if (project.project_type === 'template') {
+    try {
+      log('Generating template HTML for template project...');
+      await generateTemplateAssets(buildDir, project, log);
+      log('Template HTML generation complete');
+    } catch (err) {
+      log('Warning: Could not generate template assets: ' + err.message);
     }
   }
 
@@ -468,6 +480,405 @@ const buildAAB = async (buildDir, log) => {
       '\n\nPlease ensure Gradle, Android SDK, and JDK are properly installed on the server.' +
       '\nRefer to Android_빌드_설정_가이드.txt for installation instructions.');
   }
+};
+
+const generateTemplateAssets = async (buildDir, project, log) => {
+  try {
+    // Get template pages from database
+    const [templatePages] = await db.execute(
+      'SELECT * FROM template_pages WHERE project_id = ? ORDER BY page_type',
+      [project.id]
+    );
+
+    log(`Found ${templatePages.length} template pages`);
+
+    // Generate index.html
+    const indexHtml = generateTemplateIndexHtml(project, templatePages);
+    await fs.writeFile(
+      path.join(buildDir, 'app/src/main/assets/index.html'),
+      indexHtml
+    );
+    log('index.html generated in assets folder');
+
+    // Generate CSS
+    const cssContent = generateTemplateCSS(project);
+    await fs.writeFile(
+      path.join(buildDir, 'app/src/main/assets/style.css'),
+      cssContent
+    );
+    log('style.css generated in assets folder');
+
+    // Generate JavaScript
+    const jsContent = generateTemplateJS(project, templatePages);
+    await fs.writeFile(
+      path.join(buildDir, 'app/src/main/assets/app.js'),
+      jsContent
+    );
+    log('app.js generated in assets folder');
+
+  } catch (error) {
+    log('Error generating template assets: ' + error.message);
+    throw error;
+  }
+};
+
+const generateTemplateIndexHtml = (project, templatePages) => {
+  const themeColor = project.theme_color || '#FF6600';
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${project.app_name}</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation -->
+        ${project.bottom_tab_enabled ? generateBottomTabNavigation(project) : ''}
+
+        <!-- Page Container -->
+        <div id="page-container">
+            ${templatePages.map(page => generatePageHtml(page)).join('\n')}
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>`;
+};
+
+const generateBottomTabNavigation = (project) => {
+  return `<nav class="bottom-nav">
+        <button class="nav-item active" data-page="splash">홈</button>
+        <button class="nav-item" data-page="login">로그인</button>
+        <button class="nav-item" data-page="board">게시판</button>
+        <button class="nav-item" data-page="mypage">마이페이지</button>
+    </nav>`;
+};
+
+const generatePageHtml = (page) => {
+  const pageType = page.page_type;
+  const activeClass = pageType === 'splash' ? 'active' : '';
+
+  switch (pageType) {
+    case 'splash':
+      return `<div class="page ${activeClass}" id="page-splash">
+        <div class="splash-container">
+            <h1>${page.title || '환영합니다'}</h1>
+            <p>${page.content || ''}</p>
+        </div>
+    </div>`;
+
+    case 'login':
+      return `<div class="page" id="page-login">
+        <div class="form-container">
+            <h2>로그인</h2>
+            <form id="login-form">
+                <input type="text" placeholder="아이디" required>
+                <input type="password" placeholder="비밀번호" required>
+                <button type="submit">로그인</button>
+            </form>
+            <p><a href="#" data-page="register">회원가입</a></p>
+        </div>
+    </div>`;
+
+    case 'register':
+      return `<div class="page" id="page-register">
+        <div class="form-container">
+            <h2>회원가입</h2>
+            <form id="register-form">
+                <input type="text" placeholder="아이디" required>
+                <input type="password" placeholder="비밀번호" required>
+                <input type="password" placeholder="비밀번호 확인" required>
+                <input type="email" placeholder="이메일" required>
+                <button type="submit">가입하기</button>
+            </form>
+        </div>
+    </div>`;
+
+    case 'board':
+      return `<div class="page" id="page-board">
+        <div class="board-container">
+            <h2>게시판</h2>
+            <div class="board-list">
+                <div class="board-item">
+                    <h3>게시글 제목 1</h3>
+                    <p>게시글 내용 미리보기...</p>
+                </div>
+                <div class="board-item">
+                    <h3>게시글 제목 2</h3>
+                    <p>게시글 내용 미리보기...</p>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    case 'mypage':
+      return `<div class="page" id="page-mypage">
+        <div class="mypage-container">
+            <h2>마이페이지</h2>
+            <div class="profile">
+                <div class="profile-image"></div>
+                <p>사용자 이름</p>
+            </div>
+            <div class="menu-list">
+                <div class="menu-item">프로필 수정</div>
+                <div class="menu-item">설정</div>
+                <div class="menu-item">로그아웃</div>
+            </div>
+        </div>
+    </div>`;
+
+    default:
+      return `<div class="page" id="page-${pageType}">
+        <h2>${page.title || pageType}</h2>
+        <p>${page.content || ''}</p>
+    </div>`;
+  }
+};
+
+const generateTemplateCSS = (project) => {
+  const themeColor = project.theme_color || '#FF6600';
+
+  return `* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    background: #f5f5f5;
+}
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#page-container {
+    flex: 1;
+    position: relative;
+    padding-bottom: ${project.bottom_tab_enabled ? '60px' : '0'};
+}
+
+.page {
+    display: none;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.page.active {
+    display: block;
+}
+
+/* Splash Page */
+.splash-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    text-align: center;
+}
+
+.splash-container h1 {
+    font-size: 2.5rem;
+    color: ${themeColor};
+    margin-bottom: 1rem;
+}
+
+/* Form Styles */
+.form-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.form-container h2 {
+    text-align: center;
+    color: ${themeColor};
+    margin-bottom: 30px;
+}
+
+.form-container input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.form-container button {
+    width: 100%;
+    padding: 12px;
+    background: ${themeColor};
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.form-container a {
+    color: ${themeColor};
+    text-decoration: none;
+}
+
+/* Board */
+.board-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.board-container h2 {
+    color: ${themeColor};
+    margin-bottom: 20px;
+}
+
+.board-item {
+    background: white;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.board-item h3 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+/* My Page */
+.mypage-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.profile {
+    text-align: center;
+    padding: 40px;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.profile-image {
+    width: 100px;
+    height: 100px;
+    background: ${themeColor};
+    border-radius: 50%;
+    margin: 0 auto 20px;
+}
+
+.menu-list {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.menu-item {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.menu-item:last-child {
+    border-bottom: none;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    background: white;
+    border-top: 1px solid #eee;
+    padding: 10px 0;
+    z-index: 1000;
+}
+
+.nav-item {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: none;
+    color: #999;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.nav-item.active {
+    color: ${themeColor};
+    font-weight: bold;
+}`;
+};
+
+const generateTemplateJS = (project, templatePages) => {
+  return `// Page Navigation
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize navigation
+    const navItems = document.querySelectorAll('.nav-item');
+    const pages = document.querySelectorAll('.page');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const pageId = this.dataset.page;
+            showPage(pageId);
+
+            // Update active nav item
+            navItems.forEach(nav => nav.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Handle links
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('a[data-page]')) {
+            e.preventDefault();
+            const pageId = e.target.dataset.page;
+            showPage(pageId);
+        }
+    });
+
+    // Form handlers
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('로그인 기능은 백엔드 연동이 필요합니다');
+        });
+    }
+
+    const registerForm = document.getElementById('register-form');
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('회원가입 기능은 백엔드 연동이 필요합니다');
+        });
+    }
+});
+
+function showPage(pageId) {
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => {
+        page.classList.remove('active');
+    });
+
+    const targetPage = document.getElementById('page-' + pageId);
+    if (targetPage) {
+        targetPage.classList.add('active');
+    }
+}`;
 };
 
 module.exports = {

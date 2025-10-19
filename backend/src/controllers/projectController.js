@@ -215,13 +215,38 @@ const uploadFirebaseConfig = async (req, res) => {
       return res.status(400).json({ error: '유효하지 않은 JSON 형식입니다' });
     }
 
-    // Validate required fields
-    const requiredFields = ['project_id', 'private_key', 'client_email'];
-    const missingFields = requiredFields.filter(field => !configData[field]);
+    // Validate required fields with detailed error messages
+    const requiredFields = [
+      { key: 'project_id', name: 'Project ID (프로젝트 ID)' },
+      { key: 'private_key', name: 'Private Key (프라이빗 키)' },
+      { key: 'client_email', name: 'Client Email (클라이언트 이메일)' }
+    ];
+
+    const missingFields = requiredFields.filter(field => !configData[field.key]);
 
     if (missingFields.length > 0) {
       return res.status(400).json({
-        error: `필수 필드가 누락되었습니다: ${missingFields.join(', ')}`
+        error: `Firebase 서비스 계정 JSON 파일의 필수 필드가 누락되었습니다`,
+        missing_fields: missingFields.map(f => f.name),
+        details: `다음 필드가 필요합니다: ${missingFields.map(f => f.name).join(', ')}`,
+        hint: 'Firebase Console > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성에서 다운로드한 JSON 파일을 업로드해주세요.',
+        received_fields: Object.keys(configData).join(', ')
+      });
+    }
+
+    // Validate private key format
+    if (!configData.private_key.includes('BEGIN PRIVATE KEY')) {
+      return res.status(400).json({
+        error: 'Private Key 형식이 올바르지 않습니다',
+        details: 'Private Key는 "-----BEGIN PRIVATE KEY-----"로 시작해야 합니다'
+      });
+    }
+
+    // Validate client email format
+    if (!configData.client_email.includes('@') || !configData.client_email.includes('.iam.gserviceaccount.com')) {
+      return res.status(400).json({
+        error: 'Client Email 형식이 올바르지 않습니다',
+        details: 'Client Email은 Firebase 서비스 계정 이메일이어야 합니다 (예: firebase-adminsdk@your-project.iam.gserviceaccount.com)'
       });
     }
 
